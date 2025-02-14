@@ -3,7 +3,7 @@ from typing import Annotated
 
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, extract
+from sqlalchemy import extract, select
 from sqlalchemy.orm import Session
 
 from debt_control.database import get_session
@@ -69,28 +69,27 @@ def create_debt(debt: DebtSchema, user: CurrentUser, session: T_Session):
         select(Debt).where(
             Debt.user_id == user.id,
             Debt.description.contains(debt.description),
-            extract('month',Debt.duedate ) == debt.duedate.month,
-            extract('year',Debt.duedate ) == debt.duedate.year,
+            extract('month', Debt.duedate) == debt.duedate.month,
+            extract('year', Debt.duedate) == debt.duedate.year,
         )
     )
-    
-    
+
     if db_description:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f'Debt: {debt.description}'
-                + f' already exists for this month',
-            )
+            + ' already exists for this month',
+        )
 
     plots_count = debt.plots
     date = debt.duedate
-    
+
     debt_dict = debt.model_dump()
     debt_dict.pop('plots', None)
 
     if plots_count > 1:
         debt_dict.pop('duedate', None)
-        
+
         for count in range(1, plots_count + 1):
             db_todo = Debt(
                 **debt_dict,
@@ -105,8 +104,8 @@ def create_debt(debt: DebtSchema, user: CurrentUser, session: T_Session):
         session.refresh(db_todo)
 
         return db_todo
-    
-    db_debt = Debt(**debt_dict,plots='1|1', user_id=user.id)
+
+    db_debt = Debt(**debt_dict, plots='1|1', user_id=user.id)
 
     session.add(db_debt)
     session.commit()
@@ -143,7 +142,7 @@ def delete_debt(debt_id: int, session: T_Session, user: CurrentUser):
     debt = session.scalar(
         select(Debt).where(Debt.user_id == user.id, Debt.id == debt_id)
     )
-    
+
     if not debt:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='Debt not found.'
