@@ -8,16 +8,16 @@ services:
     ports:
       - "5432:5432"
 
-  # debt_control_app:
-  #   image: debt_control_app
-  #   entrypoint: ./entrypoint.sh
-  #   build: .
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - debt_control_database
-  #   env_file:
-  #     - .env
+  debt_control_app:
+    image: debt_control_app
+    entrypoint: ./entrypoint.sh
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - debt_control_database
+    env_file:
+      - .env
 
 volumes:
   pgdata:
