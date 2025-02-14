@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from http import HTTPStatus
+from zoneinfo import ZoneInfo
 
 import factory.fuzzy
 from dateutil.relativedelta import relativedelta
@@ -8,7 +9,7 @@ from dateutil.relativedelta import relativedelta
 from debt_control.models import Debt, DebtState
 from debt_control.schemas import DebtDashboard
 
-start_date = date.today().replace(day=1)
+start_date = datetime.now(tz=ZoneInfo('UTC')).date().replace(day=1)
 end_date = (start_date.replace(day=28) + timedelta(days=4)).replace(
     day=1
 ) - timedelta(days=1)
@@ -74,15 +75,16 @@ class DebtFactory(factory.Factory):
     value = factory.fuzzy.FuzzyFloat(10, 100)
     plots = factory.Faker('random_int', min=1, max=12)
     duedate = factory.fuzzy.FuzzyDate(
-        start_date=date.today(), end_date=date.today() + timedelta(days=15)
+        start_date=start_date.replace(day=1),
+        end_date=end_date,
     )
     state = factory.fuzzy.FuzzyChoice(DebtState)
     user_id = 1
 
 
 def test_list_debt_should_return_5_debt(session, client, user, token):
-    expected_debts = 6
-    session.bulk_save_objects(DebtFactory.create_batch(6, user_id=user.id))
+    expected_debts = 5
+    session.bulk_save_objects(DebtFactory.create_batch(5, user_id=user.id))
     session.commit()
 
     response = client.get(
@@ -152,7 +154,7 @@ def test_list_debt_filter_start_duedate_should_return_5_debt(
     session.commit()
 
     response = client.get(
-        f'/debt/?start_duedate={date.today().replace(day=1)}',
+        f'/debt/?start_duedate={start_date.replace(day=1)}',
         headers={'Authorization': f'Bearer {token}'},
     )
 
