@@ -426,5 +426,5 @@ def test_create_debt_error_should_return_value_Debt_already_exists(
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.json() == {
         'detail': f'Debt: {debt.description}'
-        + f' already exists for date: {debt.duedate}'
+        + ' already exists for this month'
     }
