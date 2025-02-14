@@ -2,7 +2,7 @@ from dataclasses import asdict
 
 from sqlalchemy import select
 
-from fast_zero.models import Todo, User
+from debt_control.models import Debt, User
 
 
 def test_create_user(session, mock_db_time):
@@ -22,22 +22,24 @@ def test_create_user(session, mock_db_time):
         'email': 'teste@test',
         'created_at': time,
         'updated_at': time,
-        'todos': [],  # Exercício
+        'debt': [],  # Exercicio
     }
 
 
-def test_create_todo(session, user: User):
-    todo = Todo(
-        title='Test Todo',
+def test_create_debt(session, user: User):
+    debt = Debt(
         description='Test Desc',
-        state='draft',
+        value=255,
+        plots=1,
+        duedate='2025-02-02',
+        state='pending',
         user_id=user.id,
     )
 
-    session.add(todo)
+    session.add(debt)
     session.commit()
-    session.refresh(todo)
+    session.refresh(debt)
 
     user = session.scalar(select(User).where(User.id == user.id))
 
-    assert todo in user.todos
+    assert debt in user.debt

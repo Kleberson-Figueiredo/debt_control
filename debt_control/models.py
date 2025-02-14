@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from sqlalchemy import ForeignKey, func
@@ -41,10 +41,10 @@ class Debt:
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
     description: Mapped[str]
     value: Mapped[float]
-    plots: Mapped[int]
-    duedate: Mapped[str]
+    plots: Mapped[str]
+    duedate: Mapped[date]
     state: Mapped[DebtState]
-    
+
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[User] = relationship(init=False, back_populates='debt')

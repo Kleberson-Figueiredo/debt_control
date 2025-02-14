@@ -8,10 +8,10 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer
 
-from fast_zero.app import app
-from fast_zero.database import get_session
-from fast_zero.models import User, table_registry
-from fast_zero.security import get_password_hash
+from debt_control.app import app
+from debt_control.database import get_session
+from debt_control.models import User, table_registry
+from debt_control.security import get_password_hash
 
 
 @pytest.fixture(scope='session')

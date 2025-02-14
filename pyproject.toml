@@ -17,6 +17,7 @@ pyjwt = "^2.10.1"
 pwdlib = {extras = ["argon2"], version = "^0.2.1"}
 tzdata = "^2024.2"
 psycopg = {extras = ["binary"], version = "^3.2.4"}
+python-dateutil = "^2.9.0.post0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -49,7 +50,7 @@ lint = 'ruff check . && ruff check . --diff'
 format = 'ruff check . --fix && ruff format'
 run = 'fastapi dev debt_control/app.py'
 pre_test = 'task lint'
-test = 'pytest -s -x --cov=fast_zero -vv'
+test = 'pytest -s -x --cov=debt_control -vv'
 post_test = 'coverage html'
 
 [build-system]

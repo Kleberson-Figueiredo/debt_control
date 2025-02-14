@@ -22,12 +22,12 @@ from debt_control.security import (
 
 router = APIRouter(prefix='/users', tags=['users'])
 
-Session = Annotated[Session, Depends(get_session)]
+T_Session = Annotated[Session, Depends(get_session)]
 CurrenteUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
-def create_user(user: UserSchema, session: Session):
+def create_user(user: UserSchema, session: T_Session):
     db_user = session.scalar(
         select(User).where(
             (User.username == user.username) | (User.email == user.email)
@@ -59,7 +59,9 @@ def create_user(user: UserSchema, session: Session):
 
 
 @router.get('/', response_model=UserList)
-def read_users(session: Session, filter_users: Annotated[FilterPage, Query()]):
+def read_users(
+    session: T_Session, filter_users: Annotated[FilterPage, Query()]
+):
     users = session.scalars(
         select(User).offset(filter_users.offset).limit(filter_users.limit)
     ).all()
@@ -71,7 +73,7 @@ def read_users(session: Session, filter_users: Annotated[FilterPage, Query()]):
 def update_user(
     user_id: int,
     user: UserSchema,
-    session: Session,
+    session: T_Session,
     current_user: CurrenteUser,
 ):
     if current_user.id != user_id:
@@ -96,7 +98,7 @@ def update_user(
 @router.delete('/{user_id}', response_model=Message)
 def delete_user(
     user_id: int,
-    session: Session,
+    session: T_Session,
     current_user: CurrenteUser,
 ):
     if current_user.id != user_id:
@@ -111,7 +113,7 @@ def delete_user(
 
 
 @router.get('/{user_id}', response_model=UserPublic)
-def read_user_id(user_id: int, session: Session):
+def read_user_id(user_id: int, session: T_Session):
     db_user = session.scalar(select(User).where(User.id == user_id))
 
     if not db_user:
