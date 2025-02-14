@@ -75,7 +75,7 @@ class DebtFactory(factory.Factory):
     value = factory.fuzzy.FuzzyFloat(10, 100)
     plots = factory.Faker('random_int', min=1, max=12)
     duedate = factory.fuzzy.FuzzyDate(
-        start_date=start_date.replace(day=1),
+        start_date=start_date,
         end_date=end_date,
     )
     state = factory.fuzzy.FuzzyChoice(DebtState)
@@ -88,7 +88,7 @@ def test_list_debt_should_return_5_debt(session, client, user, token):
     session.commit()
 
     response = client.get(
-        '/debt/',
+        f'/debt/?start_duedate={start_date}',
         headers={'Authorization': f'Bearer {token}'},
     )
 
