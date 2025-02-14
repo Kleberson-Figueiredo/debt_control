@@ -81,8 +81,8 @@ class DebtFactory(factory.Factory):
 
 
 def test_list_debt_should_return_5_debt(session, client, user, token):
-    expected_debts = 5
-    session.bulk_save_objects(DebtFactory.create_batch(5, user_id=user.id))
+    expected_debts = 6
+    session.bulk_save_objects(DebtFactory.create_batch(6, user_id=user.id))
     session.commit()
 
     response = client.get(
