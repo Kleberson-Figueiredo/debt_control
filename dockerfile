@@ -10,4 +10,8 @@ RUN poetry config installer.max-workers 10
 RUN poetry install --no-interaction --no-ansi
 
 EXPOSE 8000
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh  # Garante que está executável
+
 CMD poetry run uvicorn --host 0.0.0.0 debt_control.app:app

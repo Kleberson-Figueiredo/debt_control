@@ -16,8 +16,8 @@ services:
       - "8000:8000"
     depends_on:
       - debt_control_database
-    env_file:
-      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://debt:debtpg@debt_control_database:5432/debt_db
 
 volumes:
   pgdata:
