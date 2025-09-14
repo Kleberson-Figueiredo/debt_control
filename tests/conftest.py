@@ -1,5 +1,3 @@
-import sys
-import types
 from contextlib import contextmanager
 from datetime import datetime
 
