@@ -1,9 +1,9 @@
 from contextlib import contextmanager
 from datetime import datetime
+from unittest.mock import patch
 
 import factory
 import pytest
-from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
@@ -18,8 +18,8 @@ from debt_control.security import get_password_hash
 # Patch global para todos os testes
 @pytest.fixture(autouse=True)
 def mock_firebase_send_notification():
-    with patch("debt_control.utils.firebase.send_notification") as mock_send:
-        mock_send.return_value = {"mocked": True}
+    with patch('debt_control.utils.firebase.send_notification') as mock_send:
+        mock_send.return_value = {'mocked': True}
         yield mock_send
 
 
