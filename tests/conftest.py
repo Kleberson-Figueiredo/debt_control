@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 from datetime import datetime
-from unittest.mock import patch
 
 import factory
 import pytest
@@ -13,14 +12,6 @@ from debt_control.app import app
 from debt_control.database import get_session
 from debt_control.models import Category, User, table_registry
 from debt_control.security import get_password_hash
-
-
-# Patch global para todos os testes
-@pytest.fixture(autouse=True)
-def mock_firebase_send_notification():
-    with patch('debt_control.utils.firebase.send_notification') as mock_send:
-        mock_send.return_value = {'mocked': True}
-        yield mock_send
 
 
 @pytest.fixture(scope='session')

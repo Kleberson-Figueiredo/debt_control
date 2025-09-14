@@ -7,8 +7,14 @@ from firebase_admin import credentials, messaging
 load_dotenv()
 
 firebase_key_path = os.getenv('FIREBASE_CREDENTIALS')
-cred = credentials.Certificate(firebase_key_path)
-firebase_admin.initialize_app(cred)
+
+if firebase_key_path:  # só inicializa se a variável estiver definida
+    cred = credentials.Certificate(firebase_key_path)
+    firebase_admin.initialize_app(cred)
+else:
+    # Modo teste/CI: não inicializa Firebase
+    firebase_admin = None
+    messaging = None
 
 
 def send_notification(token: str, title: str, body: str):  # pragma: no cover
