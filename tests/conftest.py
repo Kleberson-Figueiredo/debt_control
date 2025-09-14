@@ -14,6 +14,15 @@ from debt_control.models import Category, User, table_registry
 from debt_control.security import get_password_hash
 
 
+def mock_firebase(monkeypatch):
+    def fake_send_notification(token, title, body):
+        return {"info": "fake notification"}
+    monkeypatch.setattr(
+        "debt_control.utils.firebase.send_notification",
+        fake_send_notification
+    )
+
+
 @pytest.fixture(scope='session')
 def engine():
     with PostgresContainer('postgres:16', driver='psycopg') as postgres:
