@@ -10,7 +10,7 @@ jobs:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       ALGORITHM: ${{ secrets.ALGORITHM }}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
-      FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
+      FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
 
     steps:
       - name: Copia os arquivos do repositório
@@ -28,7 +28,7 @@ jobs:
         run: poetry install
 
       - name: Criar arquivo firebase.json
-        run: echo "$FIREBASE_KEY" > firebase.json
+        run: echo "$FIREBASE_CREDENTIALS" > firebase.json
 
       - name: Executar testes
         run: poetry run task test
