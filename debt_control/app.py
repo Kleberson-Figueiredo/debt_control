@@ -14,7 +14,7 @@ app.include_router(category.router)
 app.include_router(debt.router)
 
 # inicia agendador ao subir o app
-start_scheduler()
+start_scheduler()  # pragma: no cover
 
 
 @app.get('/', status_code=HTTPStatus.OK, response_model=Message)
