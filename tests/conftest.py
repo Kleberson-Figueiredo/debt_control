@@ -3,6 +3,7 @@ from datetime import datetime
 
 import factory
 import pytest
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
@@ -14,13 +15,12 @@ from debt_control.models import Category, User, table_registry
 from debt_control.security import get_password_hash
 
 
-def mock_firebase(monkeypatch):
-    def fake_send_notification(token, title, body):
-        return {"info": "fake notification"}
-    monkeypatch.setattr(
-        "debt_control.utils.firebase.send_notification",
-        fake_send_notification
-    )
+# Patch global para todos os testes
+@pytest.fixture(autouse=True)
+def mock_firebase_send_notification():
+    with patch("debt_control.utils.firebase.send_notification") as mock_send:
+        mock_send.return_value = {"mocked": True}
+        yield mock_send
 
 
 @pytest.fixture(scope='session')
