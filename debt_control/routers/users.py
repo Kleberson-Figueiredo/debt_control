@@ -11,6 +11,7 @@ from debt_control.models import User
 from debt_control.schemas import (
     FilterPage,
     Message,
+    UpdateFcmToken,
     UserList,
     UserPublic,
     UserSchema,
@@ -49,7 +50,10 @@ def create_user(user: UserSchema, session: T_Session):
     hashed_password = get_password_hash(user.password)
 
     db_user = User(
-        username=user.username, password=hashed_password, email=user.email
+        username=user.username,
+        password=hashed_password,
+        email=user.email,
+        fcm_token=user.fcm_token,
     )
     session.add(db_user)
     session.commit()
@@ -122,3 +126,22 @@ def read_user_id(user_id: int, session: T_Session):
         )
 
     return db_user
+
+
+@router.patch('/user_id', response_model=UserPublic)
+def update_fcm_token(
+    user_id: int,
+    session: T_Session,
+    current_user: CurrenteUser,
+    user: UpdateFcmToken,
+):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail='Not enough permissions'
+        )
+
+    current_user.fcm_token = user.fcm_token
+    session.commit()
+    session.refresh(current_user)
+
+    return current_user

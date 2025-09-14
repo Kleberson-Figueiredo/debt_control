@@ -10,7 +10,7 @@ from testcontainers.postgres import PostgresContainer
 
 from debt_control.app import app
 from debt_control.database import get_session
-from debt_control.models import User, table_registry
+from debt_control.models import Category, User, table_registry
 from debt_control.security import get_password_hash
 
 
@@ -103,6 +103,18 @@ def token(client, user):
     return response.json()['access_token']
 
 
+@pytest.fixture
+def category(session, user):
+    category = Category(
+        description='Fixture Category',
+        user_id=user.id,
+    )
+    session.add(category)
+    session.commit()
+    session.refresh(category)
+    return category
+
+
 class UserFactory(factory.Factory):
     class Meta:
         model = User
@@ -110,3 +122,4 @@ class UserFactory(factory.Factory):
     username = factory.Sequence(lambda n: f'test{n}')
     email = factory.LazyAttribute(lambda obj: f'{obj.username}@test.com')
     password = factory.LazyAttribute(lambda obj: f'{obj.username}@example.com')
+    fcm_token = None

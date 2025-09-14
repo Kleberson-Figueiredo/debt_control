@@ -24,6 +24,7 @@ def test_create_user_should_return_400_username_exists(client, user):
             'username': user.username,
             'email': 'alice@example.com',
             'password': 'secret',
+            'fcm_token': 'aa',
         },
     )
     assert response.status_code == HTTPStatus.BAD_REQUEST
@@ -37,6 +38,7 @@ def test_create_user_should_return_400_email_exists(client, user):
             'username': 'alice',
             'email': user.email,
             'password': 'secret',
+            'fcm_token': None,
         },
     )
     assert response.status_code == HTTPStatus.BAD_REQUEST

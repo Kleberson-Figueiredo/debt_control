@@ -18,6 +18,8 @@ pwdlib = {extras = ["argon2"], version = "^0.2.1"}
 tzdata = "^2024.2"
 psycopg = {extras = ["binary"], version = "^3.2.4"}
 python-dateutil = "^2.9.0.post0"
+firebase-admin = "^7.1.0"
+apscheduler = "^3.11.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -48,7 +50,8 @@ addopts = '-p no:warnings'
 [tool.taskipy.tasks]
 lint = 'ruff check . && ruff check . --diff'
 format = 'ruff check . --fix && ruff format'
-run = 'fastapi dev debt_control/app.py'
+run = 'uvicorn debt_control.app:app --host 0.0.0.0 --port 8000 --reload'
+#run = 'fastapi dev debt_control/app.py'
 pre_test = 'task lint'
 test = 'pytest -s -x --cov=debt_control -vv'
 post_test = 'coverage html'

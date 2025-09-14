@@ -1,3 +1,4 @@
+from datetime import datetime
 from http import HTTPStatus
 from typing import Annotated
 
@@ -7,18 +8,28 @@ from sqlalchemy import extract, select
 from sqlalchemy.orm import Session
 
 from debt_control.database import get_session
-from debt_control.models import Debt, User
+from debt_control.models import (
+    Category,
+    Debt,
+    DebtInstallment,
+    DebtState,
+    User,
+)
 from debt_control.schemas import (
+    DebtCategory,
     DebtDashboard,
+    DebtInstallmentsList,
     DebtList,
     DebtPublic,
-    DebtSchema,
-    DebtUpdate,
     FilterDashboard,
     FilterDebt,
+    FilterDebtInstallments,
     Message,
+    PaidInstallments,
+    PayInstallentsSchema,
 )
 from debt_control.security import get_current_user
+from debt_control.utils.firebase import send_notification
 
 router = APIRouter()
 
@@ -34,6 +45,10 @@ def list_debt(
     user: CurrentUser,
     debt_filter: Annotated[FilterDebt, Query()],
 ):
+    DebtInstallment.update_overdue(session)
+
+    Debt.update_overdue_debts(session)
+
     query = select(Debt).where(Debt.user_id == user.id)
 
     if debt_filter.description:
@@ -44,22 +59,53 @@ def list_debt(
     if debt_filter.state:
         query = query.filter(Debt.state == debt_filter.state)
 
-    if debt_filter.start_duedate:
-        query = query.filter(Debt.duedate >= debt_filter.start_duedate)
-
-    if debt_filter.end_duedate:
-        query = query.filter(Debt.duedate <= debt_filter.end_duedate)
-
-    debt = session.scalars(
+    debts = session.scalars(
         query.offset(debt_filter.offset).limit(debt_filter.limit)
     ).all()
 
-    return {'debt': debt}
+    debts_public = []
+    for debt in debts:
+        pay = len(
+            session.scalars(
+                select(DebtInstallment).where(
+                    DebtInstallment.debt_id == debt.id,
+                    DebtInstallment.state == 'pay',
+                )
+            ).all()
+        )
+
+        category = session.scalar(
+            select(Category).where(Category.id == Debt.category_id)
+        )
+
+        debt_dict = debt.__dict__.copy()
+        debt_dict['paid_installments'] = pay
+        debt_dict['category'] = category.description
+        debts_public.append(DebtCategory(**debt_dict))
+
+    return {'debt': debts_public}
 
 
 @router.post('/', response_model=DebtPublic)
-def create_debt(debt: DebtSchema, user: CurrentUser, session: T_Session):
+def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
     if isinstance(debt.plots, str):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f'Value invalid plots: {debt.plots}.',
+        )
+
+    db_category = session.scalar(
+        select(Category).where(
+            Category.id == debt.category_id, Category.user_id == user.id
+        )
+    )
+
+    if not db_category:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Category not found'
+        )
+
+    if debt.plots == 0:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f'Value invalid plots: {debt.plots}.',
@@ -69,8 +115,8 @@ def create_debt(debt: DebtSchema, user: CurrentUser, session: T_Session):
         select(Debt).where(
             Debt.user_id == user.id,
             Debt.description.contains(debt.description),
-            extract('month', Debt.duedate) == debt.duedate.month,
-            extract('year', Debt.duedate) == debt.duedate.year,
+            extract('month', Debt.purchasedate) == debt.purchasedate.month,
+            extract('year', Debt.purchasedate) == debt.purchasedate.year,
         )
     )
 
@@ -80,43 +126,80 @@ def create_debt(debt: DebtSchema, user: CurrentUser, session: T_Session):
             detail=f'Debt: {debt.description}'
             + ' already exists for this month',
         )
-
+    count_paidinstallments = debt.paidinstallments
     plots_count = debt.plots
-    date = debt.duedate
+    date = debt.purchasedate
+    value = round(debt.value / debt.plots, 2)
 
-    debt_dict = debt.model_dump()
-    debt_dict.pop('plots', None)
+    db_debt = Debt(
+        description=debt.description,
+        category_id=debt.category_id,
+        value=debt.value,
+        plots=debt.plots,
+        purchasedate=debt.purchasedate,
+        state=DebtState.pay
+        if count_paidinstallments == plots_count
+        else DebtState.pending,
+        note=debt.note,
+        user_id=user.id,
+    )
+
+    session.add(db_debt)
+    session.flush()
 
     if plots_count > 1:
-        debt_dict.pop('duedate', None)
-
         for count in range(1, plots_count + 1):
-            db_todo = Debt(
-                **debt_dict,
-                plots=f'{count}|{plots_count}',
+            date += relativedelta(months=1)
+
+            db_todo = DebtInstallment(
+                debt_id=db_debt.id,
+                installmentamount=value,
+                number=count,
                 duedate=date,
+                amount=None if count > count_paidinstallments else value,
+                paid_date=None if count > count_paidinstallments else date,
+                state=(
+                    DebtState.pending
+                    if count > count_paidinstallments
+                    else DebtState.pay
+                ),
                 user_id=user.id,
             )
-            date += relativedelta(months=1)
             session.add(db_todo)
 
         session.commit()
-        session.refresh(db_todo)
+        session.refresh(db_debt)
+        return db_debt
 
-        return db_todo
+    db_debt_installment = DebtInstallment(
+        debt_id=db_debt.id,
+        installmentamount=value,
+        number=1,
+        duedate=date + relativedelta(months=1),
+        amount=value if count_paidinstallments == 1 else None,
+        paid_date=(
+            date + relativedelta(months=1)
+            if count_paidinstallments == 1
+            else None
+        ),
+        state=(
+            DebtState.pay if count_paidinstallments == 1 else DebtState.pending
+        ),
+        user_id=user.id,
+    )
 
-    db_debt = Debt(**debt_dict, plots='1|1', user_id=user.id)
-
-    session.add(db_debt)
+    session.add(db_debt_installment)
     session.commit()
     session.refresh(db_debt)
-
     return db_debt
 
 
-@router.patch('/{debt_id}', response_model=DebtPublic)
+@router.patch('/{debt_id}', response_model=Message)
 def path_debt(
-    debt_id: int, session: T_Session, user: CurrentUser, debt: DebtUpdate
+    debt_id: int,
+    session: T_Session,
+    user: CurrentUser,
+    plots: PayInstallentsSchema,
 ):
     db_debt = session.scalar(
         select(Debt).where(Debt.user_id == user.id, Debt.id == debt_id)
@@ -127,14 +210,51 @@ def path_debt(
             status_code=HTTPStatus.NOT_FOUND, detail='Debt not found'
         )
 
-    for key, value in debt.model_dump(exclude_unset=True).items():
-        setattr(db_debt, key, value)
+    plot_ids = plots.plot_ids
 
-    session.add(db_debt)
+    installments = session.scalars(
+        select(DebtInstallment).where(
+            DebtInstallment.debt_id == debt_id,
+            DebtInstallment.id.in_(plot_ids),
+            DebtInstallment.user_id == user.id,
+            DebtInstallment.state.in_([DebtState.pending, DebtState.overdue]),
+        )
+    ).all()
+
+    if not installments or len(installments) != len(plot_ids):
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='One or more installments not found.',
+        )
+
+    for installment in installments:
+        installment.state = DebtState.pay
+        installment.paid_date = datetime.today()
+        installment.amount = (
+            installment.installmentamount if plots.amount else plots.amount
+        )
+
+        if user.fcm_token:
+            send_notification(
+                user.fcm_token,
+                '✅ Parcela paga',
+                f'Sua parcela nº {installment.number}'
+                + f' da divida {db_debt.description} foi paga',
+            )
+
+    pending_installments = session.scalars(
+        select(DebtInstallment).where(
+            DebtInstallment.debt_id == debt_id,
+            DebtInstallment.user_id == user.id,
+            DebtInstallment.state == DebtState.pending,
+        )
+    ).first()
+
+    if not pending_installments:
+        db_debt.state = DebtState.pay
+
     session.commit()
-    session.refresh(db_debt)
-
-    return db_debt
+    return {'message': 'paid installments'}
 
 
 @router.delete('/{debt_id}', response_model=Message)
@@ -154,19 +274,40 @@ def delete_debt(debt_id: int, session: T_Session, user: CurrentUser):
     return {'message': 'Debt has been deleted successfully.'}
 
 
+@router.get('/{debt_id}/installments', response_model=DebtInstallmentsList)
+def list_installments(
+    debt_id: int,
+    session: T_Session,
+    user: CurrentUser,
+    debt_filter: Annotated[FilterDebtInstallments, Query()],
+):
+    query = select(DebtInstallment).where(
+        DebtInstallment.debt_id == debt_id, DebtInstallment.user_id == user.id
+    )
+
+    if debt_filter.state:
+        query = query.filter(DebtInstallment.state == debt_filter.state)
+
+    debt = session.scalars(
+        query.offset(debt_filter.offset).limit(debt_filter.limit)
+    ).all()
+
+    return {'debtinstallments': debt}
+
+
 @router.get('/dashboard', response_model=DebtDashboard)
 def dashboard_debt(
     session: T_Session,
     user: CurrentUser,
     debt_filter: Annotated[FilterDashboard, Query()],
 ):
-    query = select(Debt).where(Debt.user_id == user.id)
+    query = select(DebtInstallment).where(DebtInstallment.user_id == user.id)
 
     if debt_filter.start_date:
-        query = query.filter(Debt.duedate >= debt_filter.start_date)
+        query = query.filter(DebtInstallment.duedate >= debt_filter.start_date)
 
     if debt_filter.end_date:
-        query = query.filter(Debt.duedate <= debt_filter.end_date)
+        query = query.filter(DebtInstallment.duedate <= debt_filter.end_date)
 
     debt = session.scalars(
         query.offset(debt_filter.offset).limit(debt_filter.limit)

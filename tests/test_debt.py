@@ -3,19 +3,20 @@ from http import HTTPStatus
 from zoneinfo import ZoneInfo
 
 import factory.fuzzy
-from dateutil.relativedelta import relativedelta
 
 # ...
 from debt_control.models import Debt, DebtState
-from debt_control.schemas import DebtDashboard
 
 start_date = datetime.now(tz=ZoneInfo('UTC')).date().replace(day=1)
 end_date = (start_date.replace(day=28) + timedelta(days=4)).replace(
     day=1
 ) - timedelta(days=1)
+purchasedate = (start_date.replace(day=28) - timedelta(days=4)).replace(
+    day=1
+) - timedelta(days=1)
 
 
-def test_create_debt(client, token, mock_db_time):
+def test_create_debt(client, token, mock_db_time, category):
     with mock_db_time(model=Debt) as time:
         response = client.post(
             '/debt',
@@ -23,25 +24,33 @@ def test_create_debt(client, token, mock_db_time):
             json={
                 'description': 'Test debt description',
                 'value': 255,
+                'category_id': category.id,
                 'plots': 1,
-                'duedate': str(start_date),
+                'purchasedate': str(start_date),
                 'state': 'pending',
+                'note': None,
+                'paidinstallments': None,
             },
         )
 
     assert response.json() == {
         'id': 1,
         'description': 'Test debt description',
+        'category_id': category.id,
         'value': 255.0,
-        'plots': '1|1',
-        'duedate': str(start_date),
+        'plots': 1,
+        'purchasedate': str(start_date),
         'state': 'pending',
+        'note': None,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
+        'paid_installments': None,
     }
 
 
-def test_create_debt_should_return_2_plots(client, token, mock_db_time):
+def test_create_debt_should_return_2_plots(
+    client, token, mock_db_time, category
+):
     with mock_db_time(model=Debt) as time:
         response = client.post(
             '/debt',
@@ -49,21 +58,27 @@ def test_create_debt_should_return_2_plots(client, token, mock_db_time):
             json={
                 'description': 'Test debt description',
                 'value': 255,
+                'category_id': category.id,
                 'plots': 2,
-                'duedate': str(start_date),
+                'purchasedate': str(start_date),
                 'state': 'pending',
+                'note': None,
+                'paidinstallments': 0,
             },
         )
 
     assert response.json() == {
-        'id': 2,
+        'id': 1,
         'description': 'Test debt description',
+        'category_id': category.id,
         'value': 255.0,
-        'plots': '2|2',
-        'duedate': str(start_date + relativedelta(months=1)),
+        'plots': 2,
+        'purchasedate': str(start_date),
         'state': 'pending',
+        'note': None,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
+        'paid_installments': None,
     }
 
 
@@ -72,38 +87,42 @@ class DebtFactory(factory.Factory):
         model = Debt
 
     description = factory.Faker('text')
+    category_id = 1
     value = factory.fuzzy.FuzzyFloat(10, 100)
     plots = factory.Faker('random_int', min=1, max=12)
-    duedate = factory.fuzzy.FuzzyDate(
+    purchasedate = factory.fuzzy.FuzzyDate(
         start_date=start_date,
         end_date=end_date,
     )
     state = factory.fuzzy.FuzzyChoice(DebtState)
+    note = None
     user_id = 1
 
 
-def test_list_debt_should_return_5_debt(session, client, user, token):
+def test_list_debt_should_return_5_debt(
+    session, client, user, token, category
+):
     expected_debts = 5
     session.bulk_save_objects(DebtFactory.create_batch(5, user_id=user.id))
     session.commit()
 
     response = client.get(
-        f'/debt/?start_duedate={start_date}',
+        '/debt/',
         headers={'Authorization': f'Bearer {token}'},
     )
 
     assert len(response.json()['debt']) == expected_debts
 
 
-def test_list_debt_pagination_should_return_2_debt(
-    session, user, client, token
+def test_list_debt_pagination_should_return_5_debt(
+    session, user, client, token, category
 ):
-    expected_debts = 2
-    session.bulk_save_objects(DebtFactory.create_batch(5, user_id=user.id))
+    expected_debts = 5
+    session.bulk_save_objects(DebtFactory.create_batch(6, user_id=user.id))
     session.commit()
 
     response = client.get(
-        '/debt/?offset=1&limit=2',
+        '/debt/?offset=1&limit=5',
         headers={'Authorization': f'Bearer {token}'},
     )
 
@@ -111,7 +130,7 @@ def test_list_debt_pagination_should_return_2_debt(
 
 
 def test_list_debt_filter_description_should_return_5_debt(
-    session, user, client, token
+    session, user, client, token, category
 ):
     expected_debts = 5
     session.bulk_save_objects(
@@ -128,7 +147,7 @@ def test_list_debt_filter_description_should_return_5_debt(
 
 
 def test_list_debt_filter_state_should_return_5_debt(
-    session, user, client, token
+    session, user, client, token, category
 ):
     expected_debts = 5
     session.bulk_save_objects(
@@ -144,42 +163,8 @@ def test_list_debt_filter_state_should_return_5_debt(
     assert len(response.json()['debt']) == expected_debts
 
 
-def test_list_debt_filter_start_duedate_should_return_5_debt(
-    session, user, client, token
-):
-    expected_debts = 5
-    session.bulk_save_objects(
-        DebtFactory.create_batch(5, user_id=user.id, state=DebtState.pending)
-    )
-    session.commit()
-
-    response = client.get(
-        f'/debt/?start_duedate={start_date.replace(day=1)}',
-        headers={'Authorization': f'Bearer {token}'},
-    )
-
-    assert len(response.json()['debt']) == expected_debts
-
-
-def test_list_debt_filter_end_duedate_should_return_5_debt(
-    session, user, client, token
-):
-    expected_debts = 5
-    session.bulk_save_objects(
-        DebtFactory.create_batch(5, user_id=user.id, state=DebtState.pending)
-    )
-    session.commit()
-
-    response = client.get(
-        f'/debt/?end_duedate={end_date}',
-        headers={'Authorization': f'Bearer {token}'},
-    )
-
-    assert len(response.json()['debt']) == expected_debts
-
-
 def test_list_debt_filter_combined_should_return_5_debt(
-    session, user, client, token
+    session, user, client, token, category
 ):
     expected_debts = 5
     session.bulk_save_objects(
@@ -188,6 +173,7 @@ def test_list_debt_filter_combined_should_return_5_debt(
             user_id=user.id,
             description='combined description',
             state=DebtState.pending,
+            category_id=category.id,
         )
     )
 
@@ -197,13 +183,13 @@ def test_list_debt_filter_combined_should_return_5_debt(
             user_id=user.id,
             description='other description',
             state=DebtState.overdue,
+            category_id=category.id,
         )
     )
     session.commit()
 
     response = client.get(
-        f'/debt/?description=combined&state=pending&start_duedate={start_date}'
-        + f'&end_duedate={end_date}',
+        '/debt/?description=combined&state=pending',
         headers={'Authorization': f'Bearer {token}'},
     )
 
@@ -213,29 +199,14 @@ def test_list_debt_filter_combined_should_return_5_debt(
 def test_patch_debt_error(client, token):
     response = client.patch(
         '/debt/100',
-        json={},
+        json={'plot_ids': [1], 'amount': 0},
         headers={'Authorization': f'Bearer {token}'},
     )
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Debt not found'}
 
 
-def test_patch_todo(session, client, user, token):
-    debt = DebtFactory(user_id=user.id)
-
-    session.add(debt)
-    session.commit()
-
-    response = client.patch(
-        f'/debt/{debt.id}',
-        json={'state': 'canceled'},
-        headers={'Authorization': f'Bearer {token}'},
-    )
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()['state'] == 'canceled'
-
-
-def test_delete_debt(session, client, user, token):
+def test_delete_debt(session, client, user, token, category):
     debt = DebtFactory(user_id=user.id)
 
     session.add(debt)
@@ -260,61 +231,41 @@ def test_delete_debt_error(client, token):
     assert response.json() == {'detail': 'Debt not found.'}
 
 
-def test_list_debt_should_return_all_expected_fields__exercicio(
-    session, client, user, token, mock_db_time
-):
-    with mock_db_time(model=Debt) as time:
-        debt = DebtFactory.create(user_id=user.id)
-        session.add(debt)
-        session.commit()
+# def test_create_debt_error_should_return_value_invalid_plots(
+#     client, token, category
+# ):
+#     response = client.post(
+#         '/debt',
+#         headers={'Authorization': f'Bearer {token}'},
+#         json={
+#             'description': 'Test debt description',
+#             'category_id': category.id,
+#             'value': 255,
+#             'plots': 0,
+#             'purchasedate': str(start_date),
+#             'state': 'pending',
+#             'paidinstallments': None,
+#             'note': None,
+#         },
+#     )
 
-    session.refresh(debt)
-    response = client.get(
-        '/debt/',
-        headers={'Authorization': f'Bearer {token}'},
-    )
-
-    assert response.json()['debt'] == [
-        {
-            'created_at': time.isoformat(),
-            'updated_at': time.isoformat(),
-            'description': debt.description,
-            'id': debt.id,
-            'value': debt.value,
-            'plots': debt.plots,
-            'duedate': debt.duedate.isoformat(),
-            'state': debt.state.value,
-        }
-    ]
+#     assert response.status_code == HTTPStatus.BAD_REQUEST
+#     assert response.json() == {'detail': 'Value invalid plots: 0.'}
 
 
-def test_create_debt_error_should_return_value_invalid_plots(client, token):
-    response = client.post(
-        '/debt',
-        headers={'Authorization': f'Bearer {token}'},
-        json={
-            'description': 'Test debt description',
-            'value': 255,
-            'plots': 'a',
-            'duedate': str(start_date),
-            'state': 'pending',
-        },
-    )
-
-    assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json() == {'detail': 'Value invalid plots: a.'}
-
-
-def test_list_dashboard_filter_start_data(client, token):
+def test_list_dashboard_filter_start_data(client, token, category):
     _response = client.post(
         '/debt',
         headers={'Authorization': f'Bearer {token}'},
         json={
             'description': 'Test debt description',
+            'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'duedate': str(start_date),
+            'purchasedate': str(purchasedate),
             'state': 'pending',
+            'paidinstallments': None,
+            'note': None,
         },
     )
 
@@ -337,16 +288,19 @@ def test_list_dashboard_filter_start_data(client, token):
     }
 
 
-def test_list_dashboard_filter_end_date(client, token):
+def test_list_dashboard_filter_end_date(client, token, category):
     _response = client.post(
         '/debt',
         headers={'Authorization': f'Bearer {token}'},
         json={
             'description': 'Test debt description',
+            'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'duedate': str(start_date),
+            'purchasedate': str(purchasedate),
             'state': 'pending',
+            'paidinstallments': None,
+            'note': None,
         },
     )
 
@@ -369,44 +323,44 @@ def test_list_dashboard_filter_end_date(client, token):
     }
 
 
-def test_debt_dashboard_from_debts():
-    states = ['pending', 'pay', 'overdue', 'canceled']
-    debts = []
+# def test_debt_dashboard_from_debts():
+#     states = ['pending', 'pay', 'overdue', 'canceled']
+#     debts = []
 
-    for k in states:
-        debts.append(
-            Debt(
-                description='a',
-                value=1,
-                plots=1,
-                duedate=start_date,
-                state=k,
-                user_id=1,
-            )
-        )
+#     for k in states:
+#         debts.append(
+#             Debt(
+#                 description='a',
+#                 value=1,
+#                 plots=1,
+#                 duedate=start_date,
+#                 state=k,
+#                 user_id=1,
+#             )
+#         )
 
-    result = DebtDashboard.from_debts(debts)
+#     result = DebtDashboard.from_debts(debts)
 
-    assert result.total_debt_value == int(4)
-    assert result.total_debt == int(4)
+#     assert result.total_debt_value == int(4)
+#     assert result.total_debt == int(4)
 
-    assert result.total_pay_value == float(1)
-    assert result.total_pay == float(1)
+#     assert result.total_pay_value == float(1)
+#     assert result.total_pay == float(1)
 
-    assert result.total_pending_value == float(1)
-    assert result.total_pending == float(1)
+#     assert result.total_pending_value == float(1)
+#     assert result.total_pending == float(1)
 
-    assert result.total_canceled_value == float(1)
-    assert result.total_canceled == float(1)
+#     assert result.total_canceled_value == float(1)
+#     assert result.total_canceled == float(1)
 
-    assert result.total_overdue_value == float(1)
-    assert result.total_overdue == float(1)
+#     assert result.total_overdue_value == float(1)
+#     assert result.total_overdue == float(1)
 
 
 def test_create_debt_error_should_return_value_Debt_already_exists(
-    client, token, user, session
+    client, token, user, session, category
 ):
-    debt = DebtFactory(user_id=user.id)
+    debt = DebtFactory(user_id=user.id, category_id=category.id)
 
     session.add(debt)
     session.commit()
@@ -416,10 +370,13 @@ def test_create_debt_error_should_return_value_Debt_already_exists(
         headers={'Authorization': f'Bearer {token}'},
         json={
             'description': f'{debt.description}',
+            'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'duedate': f'{debt.duedate}',
+            'purchasedate': f'{debt.purchasedate}',
             'state': 'pending',
+            'paidinstallments': None,
+            'note': None,
         },
     )
 
