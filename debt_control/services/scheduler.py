@@ -15,5 +15,5 @@ def start_scheduler():  # pragma: no cover
         finally:
             session.close()
 
-    scheduler.add_job(job_notify, 'cron', hour=20, minute=24)
+    scheduler.add_job(job_notify, 'cron', hour=20, minute=00)
     scheduler.start()
