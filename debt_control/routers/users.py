@@ -128,7 +128,7 @@ def read_user_id(user_id: int, session: T_Session):
     return db_user
 
 
-@router.patch('/user_id', response_model=UserPublic)
+@router.patch('/{user_id}', response_model=UserPublic)
 def update_fcm_token(
     user_id: int,
     session: T_Session,
