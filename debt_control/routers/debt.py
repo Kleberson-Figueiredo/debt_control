@@ -287,6 +287,10 @@ def list_installments(
 
     if debt_filter.state:
         query = query.filter(DebtInstallment.state == debt_filter.state)
+    else:
+        query = query.filter(
+            DebtInstallment.state.in_([DebtState.pending, DebtState.overdue])
+        )
 
     debt = session.scalars(
         query.offset(debt_filter.offset).limit(debt_filter.limit)
