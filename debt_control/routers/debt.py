@@ -250,6 +250,8 @@ def path_debt(
         )
     ).first()
 
+    db_debt.state = DebtState.pending
+
     if not pending_installments:
         db_debt.state = DebtState.pay
 
