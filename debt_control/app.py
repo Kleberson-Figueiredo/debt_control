@@ -8,6 +8,20 @@ from debt_control.services.scheduler import start_scheduler
 
 app = FastAPI()
 
+# # Libera o frontend local
+# origins = [
+#     "http://127.0.0.1:5500",
+#     "http://localhost:5500",
+# ]
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,          # Ou ["*"] para liberar tudo (não recomendado em produção)
+#     allow_credentials=True,
+#     allow_methods=["*"],            # Permite todos os métodos (GET, POST, etc)
+#     allow_headers=["*"],            # Permite todos os cabeçalhos
+# )
+
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(category.router)

@@ -3,8 +3,10 @@ services:
     image: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: debt
+      POSTGRES_DB: debt_db
+      POSTGRES_PASSWORD: debtpg
     ports:
       - "5432:5432"
 

@@ -68,7 +68,7 @@ class DebtSchema(BaseModel):
     description: str
     category_id: int
     value: float
-    plots: int = 1
+    plots: int | None
     purchasedate: date
     note: str | None = None
 

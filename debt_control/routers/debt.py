@@ -82,8 +82,9 @@ def list_debt(
         debt_dict['paid_installments'] = pay
         debt_dict['category'] = category.description
         debts_public.append(DebtCategory(**debt_dict))
+        debt_sorted = sorted(debts_public, key=lambda e: e.purchasedate)
 
-    return {'debt': debts_public}
+    return {'debt': debt_sorted}
 
 
 @router.post('/', response_model=DebtPublic)
@@ -126,19 +127,21 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
             detail=f'Debt: {debt.description}'
             + ' already exists for this month',
         )
-    count_paidinstallments = debt.paidinstallments
-    plots_count = debt.plots
+    count_paidinstallments = (
+        debt.paidinstallments if debt.paidinstallments else 0
+    )
+    plots_count = debt.plots if debt.plots else 0
     date = debt.purchasedate
-    value = round(debt.value / debt.plots, 2)
+    value = round(debt.value / debt.plots if debt.plots else 1, 2)
 
     db_debt = Debt(
         description=debt.description,
         category_id=debt.category_id,
         value=debt.value,
-        plots=debt.plots,
+        plots=debt.plots if debt.plots else 1,
         purchasedate=debt.purchasedate,
         state=DebtState.pay
-        if count_paidinstallments == plots_count
+        if count_paidinstallments > 1 and plots_count < count_paidinstallments
         else DebtState.pending,
         note=debt.note,
         user_id=user.id,
@@ -149,8 +152,6 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
 
     if plots_count > 1:
         for count in range(1, plots_count + 1):
-            date += relativedelta(months=1)
-
             db_todo = DebtInstallment(
                 debt_id=db_debt.id,
                 installmentamount=value,
@@ -165,8 +166,31 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
                 ),
                 user_id=user.id,
             )
+
+            date += relativedelta(months=1)
             session.add(db_todo)
 
+        session.commit()
+        session.refresh(db_debt)
+        return db_debt
+
+    if not debt.plots:
+        db_debt_installment = DebtInstallment(
+            debt_id=db_debt.id,
+            installmentamount=value,
+            number=1,
+            duedate=date,
+            amount=value if count_paidinstallments == 1 else None,
+            paid_date=(date if count_paidinstallments == 1 else None),
+            state=(
+                DebtState.pay
+                if count_paidinstallments == 1
+                else DebtState.pending
+            ),
+            user_id=user.id,
+        )
+
+        session.add(db_debt_installment)
         session.commit()
         session.refresh(db_debt)
         return db_debt
@@ -298,7 +322,9 @@ def list_installments(
         query.offset(debt_filter.offset).limit(debt_filter.limit)
     ).all()
 
-    return {'debtinstallments': debt}
+    debt_sorted = sorted(debt, key=lambda e: e.duedate)
+
+    return {'debtinstallments': debt_sorted}
 
 
 @router.get('/dashboard', response_model=DebtDashboard)
