@@ -82,9 +82,12 @@ def list_debt(
         debt_dict['paid_installments'] = pay
         debt_dict['category'] = category.description
         debts_public.append(DebtCategory(**debt_dict))
-        debt_sorted = sorted(debts_public, key=lambda e: e.purchasedate)
 
-    return {'debt': debt_sorted}
+    if debts_public:
+        debt_sorted = sorted(debts_public, key=lambda e: e.purchasedate)
+        return {'debt': debt_sorted}
+
+    return {'debt': debts_public}
 
 
 @router.post('/', response_model=DebtPublic)
@@ -140,9 +143,14 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
         value=debt.value,
         plots=debt.plots if debt.plots else 1,
         purchasedate=debt.purchasedate,
-        state=DebtState.pay
-        if count_paidinstallments > 1 and plots_count < count_paidinstallments
-        else DebtState.pending,
+        state=(
+            DebtState.pay
+            if count_paidinstallments > 1
+            and plots_count < count_paidinstallments
+            else DebtState.overdue
+            if debt.purchasedate < date.today()
+            else DebtState.pending
+        ),
         note=debt.note,
         user_id=user.id,
     )
@@ -185,6 +193,8 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
             state=(
                 DebtState.pay
                 if count_paidinstallments == 1
+                else DebtState.overdue
+                if date < date.today()
                 else DebtState.pending
             ),
             user_id=user.id,
@@ -207,7 +217,11 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
             else None
         ),
         state=(
-            DebtState.pay if count_paidinstallments == 1 else DebtState.pending
+            DebtState.pay
+            if count_paidinstallments == 1
+            else DebtState.overdue
+            if date < date.today()
+            else DebtState.pending
         ),
         user_id=user.id,
     )
