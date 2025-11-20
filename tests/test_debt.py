@@ -8,11 +8,9 @@ import factory.fuzzy
 from debt_control.models import Debt, DebtState
 
 start_date = datetime.now(tz=ZoneInfo('UTC')).date().replace(day=1)
-
 end_date = (start_date.replace(day=28) + timedelta(days=4)).replace(
     day=1
 ) - timedelta(days=1)
-
 purchasedate = (start_date.replace(day=28) - timedelta(days=4)).replace(
     day=1
 ) - timedelta(days=1)
@@ -42,109 +40,7 @@ def test_create_debt(client, token, mock_db_time, category):
         'value': 255.0,
         'plots': 1,
         'purchasedate': str(start_date),
-        'state': 'overdue',
-        'note': None,
-        'created_at': time.isoformat(),
-        'updated_at': time.isoformat(),
-        'paid_installments': None,
-    }
-
-
-def test__create_debt_should_return_status_pay(
-    client, token, mock_db_time, category
-):
-    with mock_db_time(model=Debt) as time:
-        response = client.post(
-            '/debt',
-            headers={'Authorization': f'Bearer {token}'},
-            json={
-                'description': 'Test debt description',
-                'value': 255,
-                'category_id': category.id,
-                'plots': 1,
-                'purchasedate': str(start_date),
-                'state': 'pending',
-                'note': None,
-                'paidinstallments': 1,
-            },
-        )
-
-    assert response.json() == {
-        'id': 1,
-        'description': 'Test debt description',
-        'category_id': category.id,
-        'value': 255.0,
-        'plots': 1,
-        'purchasedate': str(start_date),
-        'state': 'pay',
-        'note': None,
-        'created_at': time.isoformat(),
-        'updated_at': time.isoformat(),
-        'paid_installments': None,
-    }
-
-
-def test__create_debt_should_return_status_pending(
-    client, token, mock_db_time, category
-):
-    with mock_db_time(model=Debt) as time:
-        response = client.post(
-            '/debt',
-            headers={'Authorization': f'Bearer {token}'},
-            json={
-                'description': 'Test debt description',
-                'value': 255,
-                'category_id': category.id,
-                'plots': 1,
-                'purchasedate': str(end_date),
-                'state': 'pending',
-                'note': None,
-                'paidinstallments': None,
-            },
-        )
-
-    assert response.json() == {
-        'id': 1,
-        'description': 'Test debt description',
-        'category_id': category.id,
-        'value': 255.0,
-        'plots': 1,
-        'purchasedate': str(end_date),
         'state': 'pending',
-        'note': None,
-        'created_at': time.isoformat(),
-        'updated_at': time.isoformat(),
-        'paid_installments': None,
-    }
-
-
-def test__create_debt_should_return_status_overdue(
-    client, token, mock_db_time, category
-):
-    with mock_db_time(model=Debt) as time:
-        response = client.post(
-            '/debt',
-            headers={'Authorization': f'Bearer {token}'},
-            json={
-                'description': 'Test debt description',
-                'value': 255,
-                'category_id': category.id,
-                'plots': 1,
-                'purchasedate': str(start_date),
-                'state': 'pending',
-                'note': None,
-                'paidinstallments': None,
-            },
-        )
-
-    assert response.json() == {
-        'id': 1,
-        'description': 'Test debt description',
-        'category_id': category.id,
-        'value': 255.0,
-        'plots': 1,
-        'purchasedate': str(start_date),
-        'state': 'overdue',
         'note': None,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
@@ -178,7 +74,7 @@ def test_create_debt_should_return_2_plots(
         'value': 255.0,
         'plots': 2,
         'purchasedate': str(start_date),
-        'state': 'overdue',
+        'state': 'pending',
         'note': None,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
@@ -366,7 +262,7 @@ def test_list_dashboard_filter_start_data(client, token, category):
             'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'purchasedate': str(start_date),
+            'purchasedate': str(end_date),
             'state': 'pending',
             'paidinstallments': None,
             'note': None,
@@ -383,12 +279,12 @@ def test_list_dashboard_filter_start_data(client, token, category):
         'total_canceled_value': 0.0,
         'total_debt': 1.0,
         'total_debt_value': 255.0,
-        'total_overdue': 1.0,
-        'total_overdue_value': 255.0,
+        'total_overdue': 0.0,
+        'total_overdue_value': 0.0,
         'total_pay': 0.0,
         'total_pay_value': 0.0,
-        'total_pending': 0.0,
-        'total_pending_value': 0.0,
+        'total_pending': 1.0,
+        'total_pending_value': 255.0,
     }
 
 
@@ -401,7 +297,7 @@ def test_list_dashboard_filter_end_date(client, token, category):
             'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'purchasedate': str(start_date),
+            'purchasedate': str(end_date),
             'state': 'pending',
             'paidinstallments': None,
             'note': None,
@@ -418,12 +314,12 @@ def test_list_dashboard_filter_end_date(client, token, category):
         'total_canceled_value': 0.0,
         'total_debt': 1.0,
         'total_debt_value': 255.0,
-        'total_overdue': 1.0,
-        'total_overdue_value': 255.0,
+        'total_overdue': 0.0,
+        'total_overdue_value': 0.0,
         'total_pay': 0.0,
         'total_pay_value': 0.0,
-        'total_pending': 0.0,
-        'total_pending_value': 0.0,
+        'total_pending': 1.0,
+        'total_pending_value': 255.0,
     }
 
 

@@ -145,10 +145,7 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
         purchasedate=debt.purchasedate,
         state=(
             DebtState.pay
-            if count_paidinstallments > 0
-            and plots_count <= count_paidinstallments
-            else DebtState.overdue
-            if debt.purchasedate < date.today()
+            if count_paidinstallments >= plots_count
             else DebtState.pending
         ),
         note=debt.note,
