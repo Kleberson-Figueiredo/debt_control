@@ -8,9 +8,11 @@ import factory.fuzzy
 from debt_control.models import Debt, DebtState
 
 start_date = datetime.now(tz=ZoneInfo('UTC')).date().replace(day=1)
+
 end_date = (start_date.replace(day=28) + timedelta(days=4)).replace(
     day=1
 ) - timedelta(days=1)
+
 purchasedate = (start_date.replace(day=28) - timedelta(days=4)).replace(
     day=1
 ) - timedelta(days=1)
@@ -40,7 +42,7 @@ def test_create_debt(client, token, mock_db_time, category):
         'value': 255.0,
         'plots': 1,
         'purchasedate': str(start_date),
-        'state': 'pending',
+        'state': 'overdue',
         'note': None,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
@@ -74,7 +76,7 @@ def test_create_debt_should_return_2_plots(
         'value': 255.0,
         'plots': 2,
         'purchasedate': str(start_date),
-        'state': 'pending',
+        'state': 'overdue',
         'note': None,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
@@ -262,7 +264,7 @@ def test_list_dashboard_filter_start_data(client, token, category):
             'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'purchasedate': str(purchasedate),
+            'purchasedate': str(start_date),
             'state': 'pending',
             'paidinstallments': None,
             'note': None,
@@ -279,12 +281,12 @@ def test_list_dashboard_filter_start_data(client, token, category):
         'total_canceled_value': 0.0,
         'total_debt': 1.0,
         'total_debt_value': 255.0,
-        'total_overdue': 0.0,
-        'total_overdue_value': 0.0,
+        'total_overdue': 1.0,
+        'total_overdue_value': 255.0,
         'total_pay': 0.0,
         'total_pay_value': 0.0,
-        'total_pending': 1.0,
-        'total_pending_value': 255.0,
+        'total_pending': 0.0,
+        'total_pending_value': 0.0,
     }
 
 
@@ -297,7 +299,7 @@ def test_list_dashboard_filter_end_date(client, token, category):
             'category_id': category.id,
             'value': 255,
             'plots': 1,
-            'purchasedate': str(purchasedate),
+            'purchasedate': str(start_date),
             'state': 'pending',
             'paidinstallments': None,
             'note': None,
@@ -314,12 +316,12 @@ def test_list_dashboard_filter_end_date(client, token, category):
         'total_canceled_value': 0.0,
         'total_debt': 1.0,
         'total_debt_value': 255.0,
-        'total_overdue': 0.0,
-        'total_overdue_value': 0.0,
+        'total_overdue': 1.0,
+        'total_overdue_value': 255.0,
         'total_pay': 0.0,
         'total_pay_value': 0.0,
-        'total_pending': 1.0,
-        'total_pending_value': 255.0,
+        'total_pending': 0.0,
+        'total_pending_value': 0.0,
     }
 
 

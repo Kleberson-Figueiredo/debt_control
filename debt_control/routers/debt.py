@@ -209,7 +209,7 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
         debt_id=db_debt.id,
         installmentamount=value,
         number=1,
-        duedate=date + relativedelta(months=1),
+        duedate=date,
         amount=value if count_paidinstallments == 1 else None,
         paid_date=(
             date + relativedelta(months=1)
