@@ -50,6 +50,108 @@ def test_create_debt(client, token, mock_db_time, category):
     }
 
 
+def test__create_debt_should_return_status_pay(
+    client, token, mock_db_time, category
+):
+    with mock_db_time(model=Debt) as time:
+        response = client.post(
+            '/debt',
+            headers={'Authorization': f'Bearer {token}'},
+            json={
+                'description': 'Test debt description',
+                'value': 255,
+                'category_id': category.id,
+                'plots': 1,
+                'purchasedate': str(start_date),
+                'state': 'pending',
+                'note': None,
+                'paidinstallments': 1,
+            },
+        )
+
+    assert response.json() == {
+        'id': 1,
+        'description': 'Test debt description',
+        'category_id': category.id,
+        'value': 255.0,
+        'plots': 1,
+        'purchasedate': str(start_date),
+        'state': 'pay',
+        'note': None,
+        'created_at': time.isoformat(),
+        'updated_at': time.isoformat(),
+        'paid_installments': None,
+    }
+
+
+def test__create_debt_should_return_status_pending(
+    client, token, mock_db_time, category
+):
+    with mock_db_time(model=Debt) as time:
+        response = client.post(
+            '/debt',
+            headers={'Authorization': f'Bearer {token}'},
+            json={
+                'description': 'Test debt description',
+                'value': 255,
+                'category_id': category.id,
+                'plots': 1,
+                'purchasedate': str(end_date),
+                'state': 'pending',
+                'note': None,
+                'paidinstallments': None,
+            },
+        )
+
+    assert response.json() == {
+        'id': 1,
+        'description': 'Test debt description',
+        'category_id': category.id,
+        'value': 255.0,
+        'plots': 1,
+        'purchasedate': str(end_date),
+        'state': 'pending',
+        'note': None,
+        'created_at': time.isoformat(),
+        'updated_at': time.isoformat(),
+        'paid_installments': None,
+    }
+
+
+def test__create_debt_should_return_status_overdue(
+    client, token, mock_db_time, category
+):
+    with mock_db_time(model=Debt) as time:
+        response = client.post(
+            '/debt',
+            headers={'Authorization': f'Bearer {token}'},
+            json={
+                'description': 'Test debt description',
+                'value': 255,
+                'category_id': category.id,
+                'plots': 1,
+                'purchasedate': str(start_date),
+                'state': 'pending',
+                'note': None,
+                'paidinstallments': None,
+            },
+        )
+
+    assert response.json() == {
+        'id': 1,
+        'description': 'Test debt description',
+        'category_id': category.id,
+        'value': 255.0,
+        'plots': 1,
+        'purchasedate': str(start_date),
+        'state': 'overdue',
+        'note': None,
+        'created_at': time.isoformat(),
+        'updated_at': time.isoformat(),
+        'paid_installments': None,
+    }
+
+
 def test_create_debt_should_return_2_plots(
     client, token, mock_db_time, category
 ):
