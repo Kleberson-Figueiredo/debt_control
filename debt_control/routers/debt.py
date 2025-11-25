@@ -4,7 +4,7 @@ from typing import Annotated
 
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import extract, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from debt_control.database import get_session
@@ -115,21 +115,6 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
             detail=f'Value invalid plots: {debt.plots}.',
         )
 
-    db_description = session.scalar(
-        select(Debt).where(
-            Debt.user_id == user.id,
-            Debt.description.contains(debt.description),
-            extract('month', Debt.purchasedate) == debt.purchasedate.month,
-            extract('year', Debt.purchasedate) == debt.purchasedate.year,
-        )
-    )
-
-    if db_description:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f'Debt: {debt.description}'
-            + ' already exists for this month',
-        )
     count_paidinstallments = (
         debt.paidinstallments if debt.paidinstallments else 0
     )

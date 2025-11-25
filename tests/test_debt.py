@@ -355,33 +355,3 @@ def test_list_dashboard_filter_end_date(client, token, category):
 
 #     assert result.total_overdue_value == float(1)
 #     assert result.total_overdue == float(1)
-
-
-def test_create_debt_error_should_return_value_Debt_already_exists(
-    client, token, user, session, category
-):
-    debt = DebtFactory(user_id=user.id, category_id=category.id)
-
-    session.add(debt)
-    session.commit()
-
-    response = client.post(
-        '/debt',
-        headers={'Authorization': f'Bearer {token}'},
-        json={
-            'description': f'{debt.description}',
-            'category_id': category.id,
-            'value': 255,
-            'plots': 1,
-            'purchasedate': f'{debt.purchasedate}',
-            'state': 'pending',
-            'paidinstallments': None,
-            'note': None,
-        },
-    )
-
-    assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json() == {
-        'detail': f'Debt: {debt.description}'
-        + ' already exists for this month'
-    }
