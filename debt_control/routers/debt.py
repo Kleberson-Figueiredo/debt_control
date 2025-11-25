@@ -118,6 +118,7 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
     count_paidinstallments = (
         debt.paidinstallments if debt.paidinstallments else 0
     )
+
     plots_count = debt.plots if debt.plots else 0
     date = debt.purchasedate
     value = round(debt.value / debt.plots if debt.plots else 1, 2)
@@ -164,40 +165,13 @@ def create_debt(debt: PaidInstallments, user: CurrentUser, session: T_Session):
         session.refresh(db_debt)
         return db_debt
 
-    if not debt.plots:
-        db_debt_installment = DebtInstallment(
-            debt_id=db_debt.id,
-            installmentamount=value,
-            number=1,
-            duedate=date,
-            amount=value if count_paidinstallments == 1 else None,
-            paid_date=(date if count_paidinstallments == 1 else None),
-            state=(
-                DebtState.pay
-                if count_paidinstallments == 1
-                else DebtState.overdue
-                if date < date.today()
-                else DebtState.pending
-            ),
-            user_id=user.id,
-        )
-
-        session.add(db_debt_installment)
-        session.commit()
-        session.refresh(db_debt)
-        return db_debt
-
     db_debt_installment = DebtInstallment(
         debt_id=db_debt.id,
         installmentamount=value,
         number=1,
         duedate=date,
         amount=value if count_paidinstallments == 1 else None,
-        paid_date=(
-            date + relativedelta(months=1)
-            if count_paidinstallments == 1
-            else None
-        ),
+        paid_date=(date if count_paidinstallments == 1 else None),
         state=(
             DebtState.pay
             if count_paidinstallments == 1
